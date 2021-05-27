@@ -1,0 +1,136 @@
+import os
+import json
+import cv2
+
+coco = dict()
+coco['images'] = []
+coco['type'] = 'instances'
+coco['annotations'] = []
+coco['categories'] = []
+
+category_set = dict()
+image_set = set()
+
+category_item_id = 0
+image_id = 0
+annotation_id = 0
+
+
+def addCatItem(name):
+    global category_item_id
+    category_item = dict()
+    category_item['supercategory'] = 'none'
+    category_item_id += 1
+    category_item['id'] = category_item_id
+    category_item['name'] = name
+    coco['categories'].append(category_item)
+    category_set[name] = category_item_id
+    return category_item_id
+
+
+def addImgItem(file_name, size):
+    global image_id
+    img_id = "%04d" % image_id
+    image_id += 1
+    image_item = dict()
+    image_item['id'] = int(img_id)
+    # image_item['id'] = image_id
+    image_item['file_name'] = file_name
+    image_item['width'] = size['width']
+    image_item['height'] = size['height']
+    coco['images'].append(image_item)
+    image_set.add(file_name)
+    return image_id
+
+
+def addAnnoItem(image_id, category_id, bbox):
+    global annotation_id
+    annotation_item = dict()
+    annotation_item['segmentation'] = []
+    seg = []
+    # bbox[] is x,y,w,h
+    # left_top
+    seg.append(bbox[0])
+    seg.append(bbox[1])
+    # left_bottom
+    seg.append(bbox[0])
+    seg.append(bbox[1] + bbox[3])
+    # right_bottom
+    seg.append(bbox[0] + bbox[2])
+    seg.append(bbox[1] + bbox[3])
+    # right_top
+    seg.append(bbox[0] + bbox[2])
+    seg.append(bbox[1])
+
+    annotation_item['segmentation'].append(seg)
+
+    annotation_item['area'] = bbox[2] * bbox[3]
+    annotation_item['iscrowd'] = 0
+    annotation_item['ignore'] = 0
+    annotation_item['image_id'] = image_id
+    annotation_item['bbox'] = bbox
+    annotation_item['category_id'] = category_id
+    annotation_id += 1
+    annotation_item['id'] = annotation_id
+    coco['annotations'].append(annotation_item)
+
+
+def parseTxtFiles(txt_path,img_path):
+    for f in os.listdir(txt_path):
+
+        bndbox = dict()
+        size = dict()
+        current_image_id = None
+        current_category_id = None
+        file_name = os.path.join(txt_path, f.replace('txt','jpg'))
+        img = cv2.imread(file_name)
+
+        size['width'] = img.shape[0]
+        size['height'] = img.shape[1]
+        size['depth'] = img.shape[2]
+
+        # add img item only after parse <size> tag
+        if current_image_id is None and file_name is not None and size['width'] is not None:
+            if file_name not in image_set:
+                current_image_id = addImgItem(file_name, size)
+                # print('add image with {} and {}'.format(file_name, size))
+            else:
+                raise Exception('duplicated image: {}'.format(file_name))
+                # subelem is <width>, <height>, <depth>, <name>, <bndbox>
+        txt_file = os.path.join(txt_path, f)
+        with open(txt_file,'r') as lf:
+            results = lf.readlines()
+        lf.close()
+
+        for subelem in results:
+            bndbox['xmin'] = results[1]*img.shape[0]
+            bndbox['w'] = results[3]*img.shape[0]
+            bndbox['ymin'] = results[2]*img.shape[1]
+            bndbox['h'] = results[4]*img.shape[1]
+
+
+            current_category_id = subelem[0]
+
+            if bndbox['xmin'] is not None:
+
+                bbox = []
+                # x
+                bbox.append(bndbox['xmin'])
+                # y
+                bbox.append(bndbox['ymin'])
+                # w
+                bbox.append(bndbox['w'])
+                # h
+                bbox.append(bndbox['h'])
+                # print('add annotation with {},{},{},{}'.format(object_name, current_image_id, current_category_id,
+                #                                                bbox))
+                addAnnoItem(current_image_id, current_category_id, bbox)
+
+
+if __name__ == '__main__':
+    img_path = 'xxxx'
+    txt_path = 'xxx/VOCdevkit/VOC2007/Annotations/'
+    json_file = 'xxx/coco/annotations/instances.json'
+    parseTxtFiles(txt_path,img_path)
+    json.dump(coco, open(json_file, 'w'))
+
