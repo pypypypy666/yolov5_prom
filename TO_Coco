@@ -8,6 +8,15 @@ coco['type'] = 'instances'
 coco['annotations'] = []
 coco['categories'] = []
 
+coco['categories'] = [
+        {"supercategory": "car", "id": 0, "name": "car"},
+        {"supercategory": "bus", "id": 1, "name": "bus"},
+        {"supercategory": "truck", "id": 2, "name": "truck"},
+        {"supercategory": "person", "id": 3, "name": "person"},
+        {"supercategory": "bike", "id": 4, "name": "bike"},
+        {"supercategory": "tricycle", "id": 5, "name": "motor"},
+    ]
+
 category_set = dict()
 image_set = set()
 
